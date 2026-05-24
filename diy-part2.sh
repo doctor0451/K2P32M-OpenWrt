@@ -55,3 +55,5 @@ chmod +x package/base-files/files/etc/uci-defaults/99-usb-automount
 
 # 确保内核开启 USB3 支持（你的 .config 已包含，这行是保险）
 # kmod-usb3 已经在 .config 中选上了
+# 以下是添加分区扩容插件（luci-app-partexp）
+git clone https://github.com/sirpdboy/luci-app-partexp.git package/luci-app-partexp
