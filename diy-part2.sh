@@ -18,13 +18,34 @@
 
 # Modify hostname
 #sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
-# 修改 K2P 设备树：添加 broken-flash-reset
-sed -i '/spi-max-frequency/a\\t\tbroken-flash-reset;' target/linux/ramips/dts/mt7621_phicomm_k2p.dts
 
-# 修改 mt7621.mk：将 K2P 的 IMAGE_SIZE 改为 32M (32128k)
+# ========== 1. 修改 K2P 设备树：支持 32MB 闪存 ==========
+DTS_FILE="target/linux/ramips/dts/mt7621_phicomm_k2p.dts"
+
+# 添加 broken-flash-reset（解决软重启）
+sed -i '/spi-max-frequency/a\\t\tbroken-flash-reset;' "$DTS_FILE"
+
+# 修改 firmware 分区大小：16MB (0xfb0000) → 32MB (0x1fb0000)
+sed -i 's/reg = <0x50000 0xfb0000>/reg = <0x50000 0x1fb0000>/' "$DTS_FILE"
+
+# 添加 USB 3.0 支持（如果不存在）
+if ! grep -q "&xhci" "$DTS_FILE"; then
+    cat >> "$DTS_FILE" << 'EOF'
+
+&xhci {
+    status = "okay";
+};
+
+&u3phy {
+    status = "okay";
+};
+EOF
+fi
+
+# ========== 2. 修改 mt7621.mk：IMAGE_SIZE 改为 32M (32128k) ==========
 sed -i '/define Device\/phicomm_k2p/,/endef/ s/IMAGE_SIZE := [0-9]*k/IMAGE_SIZE := 32128k/' target/linux/ramips/mt7621/mt7621.mk
 
-# 添加 USB 自动挂载脚本
+# ========== 3. 添加 USB 自动挂载脚本 ==========
 mkdir -p package/base-files/files/etc/uci-defaults
 cat > package/base-files/files/etc/uci-defaults/99-usb-automount << 'EOF'
 #!/bin/sh
@@ -53,8 +74,14 @@ exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/99-usb-automount
 
-# 确保内核开启 USB3 支持（你的 .config 已包含，这行是保险）
-# kmod-usb3 已经在 .config 中选上了
-# 以下是添加分区扩容插件（luci-app-partexp）
+# ========== 4. 确保 .config 包含必要配置（32MB 闪存 + USB3）==========
+cat >> .config << 'EOF'
+CONFIG_PACKAGE_kmod-usb3=y
+CONFIG_PACKAGE_kmod-usb-xhci-hcd=y
+CONFIG_PACKAGE_kmod-usb-xhci-mtk=y
+CONFIG_PACKAGE_block-mount=y
+CONFIG_TARGET_ROOTFS_PARTSIZE=300
+EOF
+
+# ========== 5. 添加分区扩容插件 ==========
 git clone https://github.com/sirpdboy/luci-app-partexp.git package/luci-app-partexp
-#
