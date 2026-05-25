@@ -62,3 +62,4 @@ sed -i '/define Device\/iptime_a3004ns-dual/,/endef/ s/IMAGE_SIZE := [0-9]*k/IMA
 
 # 添加 A3004NS 设备树的 broken-flash-reset（可选，防止软重启异常）
 sed -i '/spi-max-frequency/a\\t\tbroken-flash-reset;' target/linux/ramips/dts/mt7621_iptime_a3004ns-dual.dts
+#
