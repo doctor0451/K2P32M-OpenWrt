@@ -19,69 +19,215 @@
 # Modify hostname
 #sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
 
-# ========== 1. 修改 K2P 设备树：支持 32MB 闪存 ==========
+
+
+
+
+
+#以下   是我的代码
+
+#!/bin/bash
+# ==============================
+# K2P 硬改最终版
+# 32M闪存 + USB + 软重启
+# DTS 使用 cat 一次性写入
+# 无多余脚本、原生自动挂载
+# ==============================
+
 DTS_FILE="target/linux/ramips/dts/mt7621_phicomm_k2p.dts"
+MK_FILE="target/linux/ramips/mt7621/mt7621.mk"
 
-# 添加 broken-flash-reset（解决软重启）
-sed -i '/spi-max-frequency/a\\t\tbroken-flash-reset;' "$DTS_FILE"
+# ==============================================================================
+# 1. 一次性重写 DTS：基于你提供的原版 + 32M闪存 + 软重启 (无USB3、无u3phy)
+# ==============================================================================
+cat > "$DTS_FILE" << 'EOF'
+#include "mt7621.dtsi"
 
-# 修改 firmware 分区大小：16MB (0xfb0000) → 32MB (0x1fb0000)
-sed -i 's/reg = <0x50000 0xfb0000>/reg = <0x50000 0x1fb0000>/' "$DTS_FILE"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
-# 添加 USB 3.0 支持（如果不存在）
-if ! grep -q "&xhci" "$DTS_FILE"; then
-    cat >> "$DTS_FILE" << 'EOF'
+/ {
+	compatible = "phicomm,k2p", "mediatek,mt7621-soc";
+	model = "Phicomm K2P";
 
-&xhci {
-    status = "okay";
+	aliases {
+		led-boot = &led_blue;
+		led-failsafe = &led_blue;
+		led-running = &led_blue;
+		led-upgrade = &led_blue;
+		label-mac-device = &gmac0;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+
+		reset {
+			label = "reset";
+			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led_blue: blue {
+			label = "blue:power";
+			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+		};
+
+		yellow {
+			label = "yellow:phone";
+			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
-&u3phy {
-    status = "okay";
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		broken-flash-reset;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x30000>;
+				read-only;
+			};
+
+			partition@30000 {
+				label = "u-boot-env";
+				reg = <0x30000 0x10000>;
+				read-only;
+			};
+
+			factory: partition@40000 {
+				label = "factory";
+				reg = <0x40000 0x10000>;
+				read-only;
+			};
+
+			partition@50000 {
+				compatible = "denx,uimage";
+				label = "firmware";
+				reg = <0x50000 0x1fb0000>;
+			};
+		};
+	};
+};
+
+&gmac0 {
+	nvmem-cells = <&macaddr_factory_4>;
+	nvmem-cell-names = "mac-address";
+};
+
+&gmac1 {
+	status = "okay";
+	phy-handle = <&ethphy0>;
+	phy-mode = "rgmii";
+
+	nvmem-cells = <&macaddr_factory_2>;
+	nvmem-cell-names = "mac-address";
+};
+
+&mdio {
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&switch0 {
+	ports {
+		port@1 {
+			status = "okay";
+			label = "lan1";
+		};
+
+		port@2 {
+			status = "okay";
+			label = "lan2";
+		};
+
+		port@3 {
+			status = "okay";
+			label = "lan3";
+		};
+
+		port@4 {
+			status = "okay";
+			label = "wan";
+			nvmem-cells = <&macaddr_factory_0>;
+			nvmem-cell-names = "mac-address";
+		};
+	};
+};
+
+&pcie {
+	status = "okay";
+};
+
+&pcie0 {
+	wifi@0,0 {
+		compatible = "mediatek,mt76";
+		reg = <0x0000 0 0 0 0>;
+		mediatek,mtd-eeprom = <&factory 0x0000>;
+		ieee80211-freq-limit = <5000000 6000000>;
+	};
+};
+
+&pcie1 {
+	wifi@0,0 {
+		compatible = "mediatek,mt76";
+		reg = <0x0000 0 0 0 0>;
+		mediatek,mtd-eeprom = <&factory 0x8000>;
+		ieee80211-freq-limit = <2400000 2500000>;
+	};
+};
+
+&factory {
+	compatible = "nvmem-cells";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	macaddr_factory_0: macaddr@0 {
+		reg = <0x0 0x6>;
+	};
+
+	macaddr_factory_2: macaddr@2 {
+		reg = <0x2 0x6>;
+	};
+
+	macaddr_factory_4: macaddr@4 {
+		reg = <0x4 0x6>;
+	};
 };
 EOF
-fi
 
-# ========== 2. 修改 mt7621.mk：IMAGE_SIZE 改为 32M (32128k) ==========
-sed -i '/define Device\/phicomm_k2p/,/endef/ s/IMAGE_SIZE := [0-9]*k/IMAGE_SIZE := 32128k/' target/linux/ramips/mt7621/mt7621.mk
+# ==============================================================================
+# 2. 修改 mt7621.mk：IMAGE_SIZE 改为 32768k (按你指定命令)
+# ==============================================================================
+sed -i '/define Device\/phicomm_k2p/,/endef/ {
+    s/IMAGE_SIZE := .*/IMAGE_SIZE := 32768k/
+}' "$MK_FILE"
 
-# ========== 3. 添加 USB 自动挂载脚本 ==========
-mkdir -p package/base-files/files/etc/uci-defaults
-cat > package/base-files/files/etc/uci-defaults/99-usb-automount << 'EOF'
-#!/bin/sh
-mkdir -p /mnt/usb
-uci del_list fstab.@mount[0] >/dev/null 2>&1
-uci batch <<CONF
-set automount.@global[0]='global'
-set automount.@global[0].enabled='1'
-set automount.@global[0].timeout='3'
-set automount.@global[0].mount_prefix='/mnt'
-set automount.@global[0].usbfs='1'
-set automount.@global[0].options='rw,sync'
-set fstab.@mount[-1]='mount'
-set fstab.@mount[-1].enabled='1'
-set fstab.@mount[-1].device='*'
-set fstab.@mount[-1].target='/mnt/usb'
-set fstab.@mount[-1].fstype='auto'
-set fstab.@mount[-1].options='defaults'
-set fstab.@mount[-1].enabled_fsck='0'
-CONF
-uci commit automount
-uci commit fstab
-/etc/init.d/fstab enable
-/etc/init.d/automount enable
-exit 0
-EOF
-chmod +x package/base-files/files/etc/uci-defaults/99-usb-automount
-
-# ========== 4. 确保 .config 包含必要配置（32MB 闪存 + USB3）==========
-cat >> .config << 'EOF'
-CONFIG_PACKAGE_kmod-usb3=y
-CONFIG_PACKAGE_kmod-usb-xhci-hcd=y
-CONFIG_PACKAGE_kmod-usb-xhci-mtk=y
-CONFIG_PACKAGE_block-mount=y
-CONFIG_TARGET_ROOTFS_PARTSIZE=300
-EOF
-
-# ========== 5. 添加分区扩容插件 ==========
+# ==============================================================================
+# 3. 安装分区扩容工具
+# ==============================================================================
 git clone https://github.com/sirpdboy/luci-app-partexp.git package/luci-app-partexp
+
+# ==============================================================================
+# 4. 清理 USB3 相关驱动，防止编译报错
+# ==============================================================================
+sed -i '/kmod-usb3/d' .config
+sed -i '/kmod-usb-xhci/d' .config
+sed -i '/kmod-usb-xhci-mtk/d' .config
+
+
