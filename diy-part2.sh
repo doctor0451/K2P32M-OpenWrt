@@ -31,7 +31,7 @@
 
 #!/bin/bash
 DTS_FILE="target/linux/ramips/dts/mt7621_phicomm_k2p.dts"
-MK_FILE="target/linux/ramips/mt7621/mt7621.mk"
+MK_FILE="target/linux/ramips/image/mt7621.mk"
 
 # ==============================================
 # 1. 使用你提供的 官方原版 DTS + 32M + 软重启
@@ -222,5 +222,5 @@ EOF
 # 2. 修改 32M 固件大小（标准 32768k）
 # ==============================================
 sed -i '/define Device\/phicomm_k2p/,/endef/ {
-    s/IMAGE_SIZE := .*/IMAGE_SIZE := 32768k/
+    s/IMAGE_SIZE := .*/IMAGE_SIZE := 32448k/
 }' "$MK_FILE"
