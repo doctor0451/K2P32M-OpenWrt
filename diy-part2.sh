@@ -27,6 +27,8 @@
 #以下   是我的代码
 
 
+
+
 DTS_FILE="target/linux/ramips/dts/mt7621_phicomm_k2p.dts"
 MK_FILE="target/linux/ramips/image/mt7621.mk"
 
@@ -193,7 +195,7 @@ cat > "$DTS_FILE" << 'EOF'
 
 &state_default {
 	gpio {
-		groups = "i2c", "jtag", "usb";
+		groups = "i2c", "jtag";
 		function = "gpio";
 	};
 };
@@ -209,3 +211,6 @@ EOF
 sed -i '/define Device\/phicomm_k2p/,/endef/ {
     s/IMAGE_SIZE := .*/IMAGE_SIZE := 32448k/
 }' "$MK_FILE"
+
+
+
