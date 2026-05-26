@@ -37,8 +37,8 @@ MK_FILE="target/linux/ramips/image/mt7621.mk"
 # 1. 使用你提供的 官方原版 DTS + 32M + 软重启
 # ==============================================
 cat > "$DTS_FILE" << 'EOF'
-/dts-v1/;
 #include "mt7621.dtsi"
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
@@ -52,7 +52,6 @@ cat > "$DTS_FILE" << 'EOF'
 		led-failsafe = &led_blue;
 		led-running = &led_blue;
 		led-upgrade = &led_blue;
-		label-mac-device = &gmac0;
 	};
 
 	leds {
@@ -84,7 +83,6 @@ cat > "$DTS_FILE" << 'EOF'
 			label = "reset";
 			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_RESTART>;
-			debounce-interval = <60>;
 		};
 	};
 };
@@ -115,16 +113,44 @@ cat > "$DTS_FILE" << 'EOF'
 				read-only;
 			};
 
-			factory: partition@40000 {
+			partition@40000 {
 				label = "factory";
 				reg = <0x40000 0x10000>;
 				read-only;
+
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					eeprom_factory_0: eeprom@0 {
+						reg = <0x0 0x4da8>;
+					};
+
+					macaddr_factory_4: macaddr@4 {
+						reg = <0x4 0x6>;
+					};
+
+					macaddr_factory_e000: macaddr@e000 {
+						reg = <0xe000 0x6>;
+					};
+
+					macaddr_factory_e006: macaddr@e006 {
+						reg = <0xe006 0x6>;
+					};
+				};
 			};
 
 			partition@50000 {
+				label = "permanent_config";
+				reg = <0x50000 0x50000>;
+				read-only;
+			};
+
+			partition@a0000 {
 				compatible = "denx,uimage";
 				label = "firmware";
-				reg = <0x50000 0x1fb0000>;
+				reg = <0xa0000 0x1f60000>;
 			};
 		};
 	};
@@ -138,35 +164,30 @@ cat > "$DTS_FILE" << 'EOF'
 	wifi@0,0 {
 		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-		mediatek,mtd-eeprom = <&factory 0x0000>;
-		ieee80211-freq-limit = <2400000 2500000>;
-	};
-};
 
-&pcie1 {
-	wifi@0,0 {
-		compatible = "mediatek,mt76";
-		reg = <0x0000 0 0 0 0>;
-		mediatek,mtd-eeprom = <&factory 0x8000>;
-		ieee80211-freq-limit = <5000000 6000000>;
+		/* 5 GHz (phy1) does not take the address from calibration data,
+		   but setting it manually here works */
+		nvmem-cells = <&eeprom_factory_0>, <&macaddr_factory_4>;
+		nvmem-cell-names = "eeprom", "mac-address";
 	};
 };
 
 &gmac0 {
-	nvmem-cells = <&macaddr_factory_4>;
+	nvmem-cells = <&macaddr_factory_e000>;
 	nvmem-cell-names = "mac-address";
 };
 
 &gmac1 {
 	status = "okay";
+	label = "wan";
 	phy-handle = <&ethphy4>;
-	phy-mode = "mii";
+
+	nvmem-cells = <&macaddr_factory_e006>;
+	nvmem-cell-names = "mac-address";
 };
 
-&mdio {
-	ethphy4: ethernet-phy@4 {
-		reg = <4>;
-	};
+&ethphy4 {
+	/delete-property/ interrupts;
 };
 
 &switch0 {
@@ -175,23 +196,20 @@ cat > "$DTS_FILE" << 'EOF'
 			status = "okay";
 			label = "lan1";
 		};
+
 		port@1 {
 			status = "okay";
 			label = "lan2";
 		};
+
 		port@2 {
 			status = "okay";
 			label = "lan3";
 		};
+
 		port@3 {
 			status = "okay";
 			label = "lan4";
-		};
-		port@4 {
-			status = "okay";
-			label = "wan";
-			nvmem-cells = <&macaddr_factory_6>;
-			nvmem-cell-names = "mac-address";
 		};
 	};
 };
@@ -203,19 +221,6 @@ cat > "$DTS_FILE" << 'EOF'
 	};
 };
 
-&factory {
-	compatible = "nvmem-cells";
-	#address-cells = <1>;
-	#size-cells = <1>;
-
-	macaddr_factory_4: macaddr@4 {
-		reg = <0x4 0x6>;
-	};
-
-	macaddr_factory_6: macaddr@6 {
-		reg = <0x6 0x6>;
-	};
-};
 EOF
 
 # ==============================================
