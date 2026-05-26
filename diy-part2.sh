@@ -27,8 +27,6 @@
 #以下   是我的代码
 
 
-
-
 #!/bin/bash
 DTS_FILE="target/linux/ramips/dts/mt7621_phicomm_k2p.dts"
 MK_FILE="target/linux/ramips/image/mt7621.mk"
@@ -164,9 +162,6 @@ cat > "$DTS_FILE" << 'EOF'
 	wifi@0,0 {
 		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
-
-		/* 5 GHz (phy1) does not take the address from calibration data,
-		   but setting it manually here works */
 		nvmem-cells = <&eeprom_factory_0>, <&macaddr_factory_4>;
 		nvmem-cell-names = "eeprom", "mac-address";
 	};
@@ -181,7 +176,6 @@ cat > "$DTS_FILE" << 'EOF'
 	status = "okay";
 	label = "wan";
 	phy-handle = <&ethphy4>;
-
 	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
 };
@@ -196,17 +190,14 @@ cat > "$DTS_FILE" << 'EOF'
 			status = "okay";
 			label = "lan1";
 		};
-
 		port@1 {
 			status = "okay";
 			label = "lan2";
 		};
-
 		port@2 {
 			status = "okay";
 			label = "lan3";
 		};
-
 		port@3 {
 			status = "okay";
 			label = "lan4";
@@ -216,15 +207,22 @@ cat > "$DTS_FILE" << 'EOF'
 
 &state_default {
 	gpio {
-		groups = "i2c", "jtag";
+		groups = "i2c", "jtag", "usb";
 		function = "gpio";
 	};
 };
 
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
 EOF
 
 # ==============================================
-# 2. 修改 32M 固件大小（标准 32768k）
+# 2. 修改 32M 固件大小
 # ==============================================
 sed -i '/define Device\/phicomm_k2p/,/endef/ {
     s/IMAGE_SIZE := .*/IMAGE_SIZE := 32448k/
