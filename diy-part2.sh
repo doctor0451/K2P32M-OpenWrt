@@ -28,7 +28,7 @@
 
 
 
-
+#!/bin/bash
 DTS_FILE="target/linux/ramips/dts/mt7621_phicomm_k2p.dts"
 MK_FILE="target/linux/ramips/image/mt7621.mk"
 
@@ -180,9 +180,6 @@ cat > "$DTS_FILE" << 'EOF'
 	nvmem-cell-names = "mac-address";
 };
 
-&ethphy4 {
-	/delete-property/ interrupts;
-};
 
 &switch0 {
 	ports {
