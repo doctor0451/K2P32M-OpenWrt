@@ -26,44 +26,15 @@
 
 #以下   是我的代码
 #!/bin/bash
-#
-# https://github.com/P3TERX/Actions-OpenWrt
-# File name: diy-part2.sh
-# Description: OpenWrt DIY script part 2 (After Update feeds)
-#
-# Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
-#
-# This is free software, licensed under the MIT License.
-# See /LICENSE for more information.
-#
-
-# Modify default IP
-#sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
-
-# Modify default theme
-#sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
-
-# Modify hostname
-#sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
-
-
-
-
-
-
-#以下   是我的代码
-
-
-
-#!/bin/bash
 DTS_FILE="target/linux/ramips/dts/mt7621_phicomm_k2p.dts"
 MK_FILE="target/linux/ramips/image/mt7621.mk"
 
 # ==============================================
-# 1. 官方原版 DTS + 32M + 软重启 + USB正常开启
+# 1. 使用你提供的 官方原版 DTS + 32M + 软重启
 # ==============================================
 cat > "$DTS_FILE" << 'EOF'
 #include "mt7621.dtsi"
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
@@ -123,8 +94,8 @@ cat > "$DTS_FILE" << 'EOF'
 
 		partitions {
 			compatible = "fixed-partitions";
-			#address-cells = 1;
-			#size-cells = 1;
+			#address-cells = <1>;
+			#size-cells = <1>;
 
 			partition@0 {
 				label = "u-boot";
@@ -145,8 +116,8 @@ cat > "$DTS_FILE" << 'EOF'
 
 				nvmem-layout {
 					compatible = "fixed-layout";
-					#address-cells = 1;
-					#size-cells = 1;
+					#address-cells = <1>;
+					#size-cells = <1>;
 
 					eeprom_factory_0: eeprom@0 {
 						reg = <0x0 0x4da8>;
@@ -189,6 +160,9 @@ cat > "$DTS_FILE" << 'EOF'
 	wifi@0,0 {
 		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
+
+		/* 5 GHz (phy1) does not take the address from calibration data,
+		   but setting it manually here works */
 		nvmem-cells = <&eeprom_factory_0>, <&macaddr_factory_4>;
 		nvmem-cell-names = "eeprom", "mac-address";
 	};
@@ -203,6 +177,7 @@ cat > "$DTS_FILE" << 'EOF'
 	status = "okay";
 	label = "wan";
 	phy-handle = <&ethphy4>;
+
 	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
 };
@@ -213,10 +188,25 @@ cat > "$DTS_FILE" << 'EOF'
 
 &switch0 {
 	ports {
-		port@0 { status = "okay"; label = "lan1"; };
-		port@1 { status = "okay"; label = "lan2"; };
-		port@2 { status = "okay"; label = "lan3"; };
-		port@3 { status = "okay"; label = "lan4"; };
+		port@0 {
+			status = "okay";
+			label = "lan1";
+		};
+
+		port@1 {
+			status = "okay";
+			label = "lan2";
+		};
+
+		port@2 {
+			status = "okay";
+			label = "lan3";
+		};
+
+		port@3 {
+			status = "okay";
+			label = "lan4";
+		};
 	};
 };
 
@@ -227,14 +217,13 @@ cat > "$DTS_FILE" << 'EOF'
 	};
 };
 
-&xhci {
-	status = "okay";
-};
 EOF
 
 # ==============================================
-# 2. 32M 固件大小配置
+# 2. 修改 32M 固件大小（标准 32768k）
 # ==============================================
 sed -i '/define Device\/phicomm_k2p/,/endef/ {
     s/IMAGE_SIZE := .*/IMAGE_SIZE := 32448k/
 }' "$MK_FILE"
+
+
