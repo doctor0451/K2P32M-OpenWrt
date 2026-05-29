@@ -220,5 +220,5 @@ EOF
 # 2. 修改 32M 固件大小（标准 32768k）
 # ==============================================
 sed -i '/define Device\/phicomm_k2p/,/endef/ {
-    s/IMAGE_SIZE := .*/IMAGE_SIZE := 32448k/
+    s/IMAGE_SIZE := .*/IMAGE_SIZE := 32128k/
 }' "$MK_FILE"
