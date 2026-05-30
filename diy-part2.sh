@@ -141,7 +141,7 @@ cat > "$DTS_FILE" << 'EOF'
 			partition@a0000 {
 				compatible = "denx,uimage";
 				label = "firmware";
-				reg = <0xa0000 0x1f60000>;
+				reg = <0xa0000 0x1fc0000>;
 			};
 		};
 	};
@@ -220,5 +220,5 @@ EOF
 # 2. 修改 32M 固件大小（标准 32768k）
 # ==============================================
 sed -i '/define Device\/phicomm_k2p/,/endef/ {
-    s/IMAGE_SIZE := .*/IMAGE_SIZE := 32128k/
+    s/IMAGE_SIZE := .*/IMAGE_SIZE := 32512k/
 }' "$MK_FILE"
