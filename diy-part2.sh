@@ -28,6 +28,7 @@ MK_FILE="target/linux/ramips/image/mt7621.mk"
 # ==============================================
 cat > "$DTS_FILE" << 'EOF'
 #include "mt7621.dtsi"
+
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
@@ -87,8 +88,8 @@ cat > "$DTS_FILE" << 'EOF'
 
 		partitions {
 			compatible = "fixed-partitions";
-			#address-cells = 1;
-			#size-cells = 1;
+			#address-cells = <1>;
+			#size-cells = <1>;
 
 			partition@0 {
 				label = "u-boot";
@@ -109,8 +110,8 @@ cat > "$DTS_FILE" << 'EOF'
 
 				nvmem-layout {
 					compatible = "fixed-layout";
-					#address-cells = 1;
-					#size-cells = 1;
+					#address-cells = <1>;
+					#size-cells = <1>;
 
 					eeprom_factory_0: eeprom@0 {
 						reg = <0x0 0x4da8>;
@@ -153,6 +154,9 @@ cat > "$DTS_FILE" << 'EOF'
 	wifi@0,0 {
 		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
+
+		/* 5 GHz (phy1) does not take the address from calibration data,
+		   but setting it manually here works */
 		nvmem-cells = <&eeprom_factory_0>, <&macaddr_factory_4>;
 		nvmem-cell-names = "eeprom", "mac-address";
 	};
@@ -167,6 +171,7 @@ cat > "$DTS_FILE" << 'EOF'
 	status = "okay";
 	label = "wan";
 	phy-handle = <&ethphy4>;
+
 	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
 };
@@ -177,10 +182,25 @@ cat > "$DTS_FILE" << 'EOF'
 
 &switch0 {
 	ports {
-		port@0 { status = "okay"; label = "lan1"; };
-		port@1 { status = "okay"; label = "lan2"; };
-		port@2 { status = "okay"; label = "lan3"; };
-		port@3 { status = "okay"; label = "lan4"; };
+		port@0 {
+			status = "okay";
+			label = "lan1";
+		};
+
+		port@1 {
+			status = "okay";
+			label = "lan2";
+		};
+
+		port@2 {
+			status = "okay";
+			label = "lan3";
+		};
+
+		port@3 {
+			status = "okay";
+			label = "lan4";
+		};
 	};
 };
 &xhci {
