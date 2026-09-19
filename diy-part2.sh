@@ -212,11 +212,6 @@ cat > "$DTS_FILE" << 'EOF'
         function = "gpio";
     };
 };
-// 新增MT7621温度传感器节点
-&thermal {
-	compatible = "mediatek,mt7621-thermal";
-	status = "okay";
-};
 EOF
 
 # ==============================================
